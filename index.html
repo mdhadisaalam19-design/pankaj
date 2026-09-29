@@ -1,11 +1,10 @@
-```html
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>Media Player</title>
+    <title>Media Terminal</title>
 
     <style>
         * {
@@ -14,186 +13,396 @@
 
         body {
             margin: 0;
+            background: #000;
+            color: #00ff66;
+            font-family: monospace;
             min-height: 100vh;
-            background: #111;
-            color: white;
-            font-family: Arial, sans-serif;
+        }
+
+        .terminal {
+            width: 100%;
+            min-height: 100vh;
+            padding: 15px;
+            background: #000;
+        }
+
+        .top {
+            color: #00ff66;
+            margin-bottom: 10px;
+        }
+
+        #output {
+            white-space: pre-wrap;
+            word-break: break-word;
+            line-height: 1.5;
+        }
+
+        .input-line {
             display: flex;
-            justify-content: center;
             align-items: center;
-            padding: 20px;
         }
 
-        .container {
-            width: 100%;
-            max-width: 800px;
-            background: #1e1e1e;
-            padding: 25px;
-            border-radius: 15px;
+        .prompt {
+            color: #00ff66;
+            margin-right: 8px;
+        }
+
+        #command {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #fff;
+            font-family: monospace;
+            font-size: 16px;
+            caret-color: #00ff66;
+        }
+
+        #mediaContainer {
+            margin-top: 20px;
+            display: none;
             text-align: center;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        }
-
-        h1 {
-            margin-top: 0;
-        }
-
-        .file-box {
-            margin: 20px 0;
-            padding: 20px;
-            border: 2px dashed #555;
-            border-radius: 10px;
-        }
-
-        input[type="file"] {
-            width: 100%;
-            padding: 12px;
-            background: #292929;
-            color: white;
-            border-radius: 8px;
-        }
-
-        .filename {
-            margin: 15px 0;
-            color: #aaa;
-            word-break: break-all;
         }
 
         video,
         img {
-            width: 100%;
-            max-height: 500px;
-            object-fit: contain;
-            border-radius: 10px;
-            background: black;
-            display: none;
-        }
-
-        button {
-            margin-top: 15px;
-            padding: 12px 20px;
-            border: none;
+            max-width: 100%;
+            max-height: 70vh;
             border-radius: 8px;
-            cursor: pointer;
-            background: #007bff;
-            color: white;
-            font-size: 16px;
+            background: #111;
         }
 
-        button:hover {
-            background: #0056b3;
+        .error {
+            color: #ff4444;
+        }
+
+        .info {
+            color: #aaa;
         }
     </style>
 </head>
 
 <body>
 
-<div class="container">
+<div class="terminal">
 
-    <h1>📁 Media Player</h1>
-
-    <div class="file-box">
-        <p>Select your video or photo</p>
-
-        <input
-            type="file"
-            id="fileInput"
-            accept="video/*,image/*"
-        >
-
-        <div class="filename" id="filename">
-            No file selected
-        </div>
+    <div class="top">
+        Welcome to MediaTermux<br>
+        Type <b>help</b> for commands.
     </div>
 
-    <!-- Video Player -->
-    <video id="videoPlayer" controls></video>
+    <div id="output"></div>
 
-    <!-- Photo Viewer -->
-    <img id="imageViewer" alt="Selected image">
+    <div class="input-line">
+        <span class="prompt">user@media:~$</span>
+        <input
+            type="text"
+            id="command"
+            autocomplete="off"
+            autofocus
+            placeholder="type command..."
+        >
+    </div>
 
-    <button id="fullscreenBtn" style="display:none;">
-        Fullscreen
-    </button>
+    <div id="mediaContainer">
+
+        <video id="videoPlayer" controls></video>
+
+        <img id="imagePlayer" alt="Image">
+
+    </div>
 
 </div>
 
+
 <script>
-    const fileInput = document.getElementById("fileInput");
-    const videoPlayer = document.getElementById("videoPlayer");
-    const imageViewer = document.getElementById("imageViewer");
-    const filename = document.getElementById("filename");
-    const fullscreenBtn = document.getElementById("fullscreenBtn");
 
-    let currentURL = null;
+const commandInput = document.getElementById("command");
+const output = document.getElementById("output");
 
-    fileInput.addEventListener("change", function () {
+const mediaContainer =
+    document.getElementById("mediaContainer");
 
-        const file = this.files[0];
+const videoPlayer =
+    document.getElementById("videoPlayer");
 
-        if (!file) {
+const imagePlayer =
+    document.getElementById("imagePlayer");
+
+let currentURL = null;
+
+
+// Print text in terminal
+function print(text, className = "") {
+
+    const line = document.createElement("div");
+
+    line.textContent = text;
+
+    if (className) {
+        line.className = className;
+    }
+
+    output.appendChild(line);
+
+    window.scrollTo(0, document.body.scrollHeight);
+}
+
+
+// Hide media
+function hideMedia() {
+
+    mediaContainer.style.display = "none";
+
+    videoPlayer.style.display = "none";
+    imagePlayer.style.display = "none";
+
+    videoPlayer.pause();
+    videoPlayer.removeAttribute("src");
+    imagePlayer.removeAttribute("src");
+
+    if (currentURL) {
+        URL.revokeObjectURL(currentURL);
+        currentURL = null;
+    }
+}
+
+
+// Open a file
+async function openFile(filename) {
+
+    print("Opening: " + filename);
+
+    /*
+       Browser security requires the user to choose
+       the local file.
+    */
+
+    try {
+
+        // Modern browsers
+        if ("showOpenFilePicker" in window) {
+
+            const handles = await window.showOpenFilePicker({
+                multiple: false
+            });
+
+            const file = await handles[0].getFile();
+
+            if (file.name !== filename) {
+
+                print(
+                    "Error: selected file is \"" +
+                    file.name +
+                    "\"",
+                    "error"
+                );
+
+                print(
+                    "Expected: " + filename,
+                    "error"
+                );
+
+                return;
+            }
+
+            displayFile(file);
+
+        }
+
+        // Fallback for browsers without showOpenFilePicker
+        else {
+
+            const input = document.createElement("input");
+
+            input.type = "file";
+            input.accept = "video/*,image/*";
+
+            input.onchange = function () {
+
+                const file = input.files[0];
+
+                if (!file) {
+                    return;
+                }
+
+                if (file.name !== filename) {
+
+                    print(
+                        "Error: selected file is \"" +
+                        file.name +
+                        "\"",
+                        "error"
+                    );
+
+                    print(
+                        "Expected: " + filename,
+                        "error"
+                    );
+
+                    return;
+                }
+
+                displayFile(file);
+            };
+
+            input.click();
+        }
+
+    } catch (error) {
+
+        if (error.name !== "AbortError") {
+
+            print(
+                "Could not open file.",
+                "error"
+            );
+        }
+    }
+}
+
+
+// Display video or image
+function displayFile(file) {
+
+    hideMedia();
+
+    currentURL = URL.createObjectURL(file);
+
+    mediaContainer.style.display = "block";
+
+    if (file.type.startsWith("video/")) {
+
+        videoPlayer.src = currentURL;
+        videoPlayer.style.display = "block";
+
+        print(
+            "Video opened: " + file.name
+        );
+
+        videoPlayer.play().catch(() => {});
+
+    }
+
+    else if (file.type.startsWith("image/")) {
+
+        imagePlayer.src = currentURL;
+        imagePlayer.style.display = "block";
+
+        print(
+            "Image opened: " + file.name
+        );
+
+    }
+
+    else {
+
+        print(
+            "Unsupported file type.",
+            "error"
+        );
+
+        hideMedia();
+    }
+}
+
+
+// Commands
+commandInput.addEventListener("keydown", function(event) {
+
+    if (event.key !== "Enter") {
+        return;
+    }
+
+    const command = commandInput.value.trim();
+
+    if (!command) {
+        return;
+    }
+
+    print(
+        "user@media:~$ " + command
+    );
+
+    commandInput.value = "";
+
+    const parts = command.split(/\s+/);
+
+    const cmd = parts[0].toLowerCase();
+
+
+    // HELP
+    if (cmd === "help") {
+
+        print("");
+        print("Commands:");
+        print("  open video.mp4");
+        print("  open photo.jpg");
+        print("  clear");
+        print("  help");
+        print("");
+
+    }
+
+
+    // CLEAR
+    else if (cmd === "clear") {
+
+        output.innerHTML = "";
+
+        hideMedia();
+
+    }
+
+
+    // OPEN
+    else if (cmd === "open") {
+
+        if (!parts[1]) {
+
+            print(
+                "Usage: open filename.mp4",
+                "error"
+            );
+
             return;
         }
 
-        // Show filename
-        filename.textContent = file.name;
+        // Supports filenames containing spaces
+        const filename = command.substring(
+            command.indexOf(" ") + 1
+        ).trim();
 
-        // Remove previous file URL
-        if (currentURL) {
-            URL.revokeObjectURL(currentURL);
-        }
+        openFile(filename);
 
-        currentURL = URL.createObjectURL(file);
+    }
 
-        // Hide both players first
-        videoPlayer.style.display = "none";
-        imageViewer.style.display = "none";
-        fullscreenBtn.style.display = "none";
 
-        // Check if video
-        if (file.type.startsWith("video/")) {
+    // EXIT
+    else if (cmd === "exit") {
 
-            videoPlayer.src = currentURL;
-            videoPlayer.style.display = "block";
-            fullscreenBtn.style.display = "inline-block";
+        print("You can close this tab.");
 
-            videoPlayer.load();
+    }
 
-        }
 
-        // Check if image
-        else if (file.type.startsWith("image/")) {
+    // Unknown command
+    else {
 
-            imageViewer.src = currentURL;
-            imageViewer.style.display = "block";
-            fullscreenBtn.style.display = "inline-block";
+        print(
+            "Command not found: " + cmd,
+            "error"
+        );
 
-        }
+        print(
+            "Type 'help' for available commands."
+        );
+    }
 
-        else {
+});
 
-            filename.textContent =
-                "❌ Unsupported file: " + file.name;
-
-        }
-    });
-
-    // Fullscreen button
-    fullscreenBtn.addEventListener("click", function () {
-
-        const media =
-            videoPlayer.style.display !== "none"
-            ? videoPlayer
-            : imageViewer;
-
-        if (media.requestFullscreen) {
-            media.requestFullscreen();
-        }
-
-    });
 </script>
 
 </body>
 </html>
-
 
