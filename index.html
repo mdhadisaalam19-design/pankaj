@@ -1,0 +1,199 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Media Player</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: #111;
+            color: white;
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background: #1e1e1e;
+            padding: 25px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        h1 {
+            margin-top: 0;
+        }
+
+        .file-box {
+            margin: 20px 0;
+            padding: 20px;
+            border: 2px dashed #555;
+            border-radius: 10px;
+        }
+
+        input[type="file"] {
+            width: 100%;
+            padding: 12px;
+            background: #292929;
+            color: white;
+            border-radius: 8px;
+        }
+
+        .filename {
+            margin: 15px 0;
+            color: #aaa;
+            word-break: break-all;
+        }
+
+        video,
+        img {
+            width: 100%;
+            max-height: 500px;
+            object-fit: contain;
+            border-radius: 10px;
+            background: black;
+            display: none;
+        }
+
+        button {
+            margin-top: 15px;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            background: #007bff;
+            color: white;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>📁 Media Player</h1>
+
+    <div class="file-box">
+        <p>Select your video or photo</p>
+
+        <input
+            type="file"
+            id="fileInput"
+            accept="video/*,image/*"
+        >
+
+        <div class="filename" id="filename">
+            No file selected
+        </div>
+    </div>
+
+    <!-- Video Player -->
+    <video id="videoPlayer" controls></video>
+
+    <!-- Photo Viewer -->
+    <img id="imageViewer" alt="Selected image">
+
+    <button id="fullscreenBtn" style="display:none;">
+        Fullscreen
+    </button>
+
+</div>
+
+<script>
+    const fileInput = document.getElementById("fileInput");
+    const videoPlayer = document.getElementById("videoPlayer");
+    const imageViewer = document.getElementById("imageViewer");
+    const filename = document.getElementById("filename");
+    const fullscreenBtn = document.getElementById("fullscreenBtn");
+
+    let currentURL = null;
+
+    fileInput.addEventListener("change", function () {
+
+        const file = this.files[0];
+
+        if (!file) {
+            return;
+        }
+
+        // Show filename
+        filename.textContent = file.name;
+
+        // Remove previous file URL
+        if (currentURL) {
+            URL.revokeObjectURL(currentURL);
+        }
+
+        currentURL = URL.createObjectURL(file);
+
+        // Hide both players first
+        videoPlayer.style.display = "none";
+        imageViewer.style.display = "none";
+        fullscreenBtn.style.display = "none";
+
+        // Check if video
+        if (file.type.startsWith("video/")) {
+
+            videoPlayer.src = currentURL;
+            videoPlayer.style.display = "block";
+            fullscreenBtn.style.display = "inline-block";
+
+            videoPlayer.load();
+
+        }
+
+        // Check if image
+        else if (file.type.startsWith("image/")) {
+
+            imageViewer.src = currentURL;
+            imageViewer.style.display = "block";
+            fullscreenBtn.style.display = "inline-block";
+
+        }
+
+        else {
+
+            filename.textContent =
+                "❌ Unsupported file: " + file.name;
+
+        }
+    });
+
+    // Fullscreen button
+    fullscreenBtn.addEventListener("click", function () {
+
+        const media =
+            videoPlayer.style.display !== "none"
+            ? videoPlayer
+            : imageViewer;
+
+        if (media.requestFullscreen) {
+            media.requestFullscreen();
+        }
+
+    });
+</script>
+
+</body>
+</html>
+
+
